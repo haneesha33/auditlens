@@ -1,0 +1,66 @@
+# Copy to .github/workflows/auditlens-dashboard.yml in the repo AuditLens reviews.
+# Rebuilds the readiness dashboard after every AuditLens run and publishes it to GitHub Pages.
+# One-time setup: repo Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
+name: AuditLens Dashboard
+
+on:
+  workflow_run:
+    workflows: ["AuditLens"]      # the `name:` of your AuditLens PR workflow
+    types: [completed]
+  workflow_dispatch:              # lets you run it by hand from the Actions tab
+
+permissions:
+  actions: read                   # download evidence artifacts from AuditLens runs
+  contents: read
+  pull-requests: read             # PR titles and open/closed state
+  pages: write                    # publish to GitHub Pages
+  id-token: write                 # required by deploy-pages
+
+concurrency:
+  group: auditlens-pages
+  cancel-in-progress: true
+
+jobs:
+  dashboard:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Get AuditLens
+        uses: actions/checkout@v4
+        with:
+          repository: haneesha33/auditlens
+          path: auditlens
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Collect evidence from AuditLens runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p evidence
+          gh run list -R "$GITHUB_REPOSITORY" --workflow auditlens.yml --limit 100 \
+            --json databaseId,status -q '.[] | select(.status=="completed") | .databaseId' |
+          while read -r id; do
+            gh run download "$id" -R "$GITHUB_REPOSITORY" -D "evidence/$id" || true
+          done
+          gh pr list -R "$GITHUB_REPOSITORY" --state all --limit 200 \
+            --json number,title,state,url > prs.json
+          echo "Evidence files found: $(find evidence -name 'evidence-*.json' | wc -l)"
+
+      - name: Build dashboard
+        working-directory: auditlens
+        run: |
+          pip install --quiet pyyaml
+          python -m auditlens.dashboard --evidence-dir ../evidence --prs ../prs.json \
+            --repo "$GITHUB_REPOSITORY" --out ../site/index.html
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4

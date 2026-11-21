@@ -100,6 +100,22 @@ bash demo/setup_demo.sh haneesha33
 # then push the branches and open three PRs
 ```
 
+## Readiness dashboard
+
+`python -m auditlens.dashboard` turns the per-PR evidence records into one self-contained HTML page:
+
+- **Framework readiness** for SOC 2, ISO 27001, ISO 42001, NIST AI RMF and OWASP LLM: the share of in-scope controls with no open findings across open PRs, and which requirements are open
+- **Control-by-PR matrix** showing each control as *fail / no findings / performed / not applicable* on each change
+- **Open critical and high findings**, CISA KEV count, and the **AI system inventory** with risk levels
+
+Copy [`examples/dashboard-workflow.yml`](examples/dashboard-workflow.yml) into the reviewed repo and set **Settings → Pages → Source: GitHub Actions**. The page is rebuilt and published after every AuditLens run.
+
+```bash
+python -m auditlens.dashboard --evidence-dir ./evidence --prs prs.json --repo owner/name --out site/index.html
+```
+
+> Readiness here measures automated change review only. It is not an audit opinion, and "no findings" is never reported as "pass".
+
 ## Framework coverage
 
 The catalog in [`controls/controls.yaml`](controls/controls.yaml) contains 24 controls:
@@ -127,7 +143,6 @@ AuditLens is itself an AI system, so it follows its own rules:
 
 ## Roadmap
 
-- [ ] Readiness dashboard (GitHub Pages) aggregating evidence across PRs
 - [ ] STRIDE + MITRE ATLAS threat model per change
 - [ ] OSCAL catalog import for full framework coverage
 - [ ] Inline review comments on specific lines

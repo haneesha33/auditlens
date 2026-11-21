@@ -5,6 +5,7 @@
 #
 # Everything here is fake and intentionally insecure. The "secrets" are not real credentials.
 set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 GH_USER="${1:-YOUR_GITHUB_USERNAME}"
 DIR="${2:-acme-support-app}"
 
@@ -60,6 +61,7 @@ jobs:
           anthropic-api-key: \${{ secrets.ANTHROPIC_API_KEY }}
           fail-on: critical
 EOF
+sed "s/YOUR_GITHUB_USERNAME/$GH_USER/" "$SCRIPT_DIR/../examples/dashboard-workflow.yml" > .github/workflows/auditlens-dashboard.yml 2>/dev/null || true
 git add -A && git commit -qm "Initial clean app"
 
 # ---------------- PR 1: file exports to S3 (secret + public bucket) ----------------
