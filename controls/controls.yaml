@@ -1,0 +1,197 @@
+# AuditLens common control framework (CCF)
+#
+# Each internal control (AL-xx) is written once and mapped to several frameworks,
+# the same way GRC platforms dedupe overlapping requirements.
+# This is a curated demo subset, not an exhaustive or authoritative mapping.
+# Verify references against the licensed standard text before relying on them.
+
+controls:
+  # ---------- Identity, secrets, access ----------
+  - id: AL-01
+    title: No hardcoded secrets or credentials in source code
+    policy: "Access Control Policy §3.4"
+    frameworks:
+      soc2: [CC6.1]
+      iso27001: [A.5.17, A.8.4]
+      owasp_llm: [LLM02]
+
+  - id: AL-02
+    title: Authentication and authorization enforced on new endpoints
+    policy: "Secure SDLC Policy §4.2"
+    frameworks:
+      soc2: [CC6.1, CC6.3]
+      iso27001: [A.5.15, A.8.3, A.8.5]
+
+  - id: AL-03
+    title: Least privilege for cloud IAM roles and service accounts
+    policy: "Access Control Policy §3.2"
+    frameworks:
+      soc2: [CC6.1, CC6.3]
+      iso27001: [A.5.15, A.5.18, A.8.2]
+
+  # ---------- Data protection ----------
+  - id: AL-04
+    title: Data encrypted at rest and in transit
+    policy: "Data Classification Policy §5.1"
+    frameworks:
+      soc2: [CC6.1, CC6.7]
+      iso27001: [A.8.24]
+
+  - id: AL-05
+    title: Storage and network resources not publicly exposed
+    policy: "Data Classification Policy §5.3"
+    frameworks:
+      soc2: [CC6.1, CC6.6]
+      iso27001: [A.8.3, A.8.20, A.5.23]
+
+  - id: AL-06
+    title: Confidential and personal data handled per classification (no PII in logs, minimized)
+    policy: "Data Classification Policy §4.2"
+    frameworks:
+      soc2: [CC6.1, C1.1, P4.1]
+      iso27001: [A.5.34, A.8.11, A.8.12]
+
+  # ---------- Secure development & change ----------
+  - id: AL-07
+    title: Secure coding — no injection-prone patterns (SQL, command, eval)
+    policy: "Secure SDLC Policy §4.4"
+    frameworks:
+      soc2: [CC8.1]
+      iso27001: [A.8.28, A.8.26]
+
+  - id: AL-08
+    title: Changes reviewed for security before merge
+    policy: "Secure SDLC Policy §4.1"
+    frameworks:
+      soc2: [CC8.1]
+      iso27001: [A.8.25, A.8.32]
+
+  - id: AL-09
+    title: Security-relevant events logged; logs protected
+    policy: "Secure SDLC Policy §4.6"
+    frameworks:
+      soc2: [CC7.2]
+      iso27001: [A.8.15]
+
+  # ---------- Vulnerability management ----------
+  - id: AL-10
+    title: Known exploited vulnerabilities (CISA KEV) remediated before merge
+    policy: "Vulnerability Management (Secure SDLC Policy §6.1)"
+    frameworks:
+      soc2: [CC7.1]
+      iso27001: [A.8.8]
+      owasp_llm: [LLM03]
+
+  - id: AL-11
+    title: Dependencies with high-risk CVEs remediated within SLA
+    policy: "Vulnerability Management (Secure SDLC Policy §6.2)"
+    frameworks:
+      soc2: [CC7.1]
+      iso27001: [A.8.8]
+      owasp_llm: [LLM03]
+
+  - id: AL-12
+    title: Infrastructure as code follows hardened baseline configuration
+    policy: "Secure SDLC Policy §5.1"
+    frameworks:
+      soc2: [CC7.1, CC8.1]
+      iso27001: [A.8.9]
+
+  # ---------- Third parties ----------
+  - id: AL-13
+    title: New third-party services and AI providers approved through vendor review
+    policy: "Vendor Management Policy §2.1"
+    frameworks:
+      soc2: [CC9.2]
+      iso27001: [A.5.19, A.5.21]
+      iso42001: [A.10.3]
+      nist_ai_rmf: [GOVERN 6.1]
+
+  # ---------- AI governance & AI security ----------
+  - id: AL-20
+    title: AI system registered in AI inventory before production
+    policy: "AI Acceptable Use Policy §2.1"
+    frameworks:
+      iso42001: [A.4.2, A.6.2.2]
+      nist_ai_rmf: [GOVERN 1.6, MAP 1.1]
+
+  - id: AL-21
+    title: AI impact assessment completed for new AI features
+    policy: "AI Acceptable Use Policy §2.3"
+    frameworks:
+      iso42001: [A.5.2, A.5.3, A.5.4]
+      nist_ai_rmf: [MAP 1.1, MAP 5.1]
+
+  - id: AL-22
+    title: Untrusted input isolated from instructions (prompt injection defenses)
+    policy: "AI Acceptable Use Policy §4.1"
+    frameworks:
+      iso42001: [A.6.2.4]
+      nist_ai_rmf: [MEASURE 2.7]
+      owasp_llm: [LLM01]
+
+  - id: AL-23
+    title: No confidential data or PII sent to external models without approval and minimization
+    policy: "AI Acceptable Use Policy §3.2"
+    frameworks:
+      soc2: [CC6.7, C1.1]
+      iso27001: [A.8.12]
+      iso42001: [A.7.4, A.7.5]
+      nist_ai_rmf: [MEASURE 2.10]
+      owasp_llm: [LLM02]
+
+  - id: AL-24
+    title: Model output validated before use (no eval/exec/SQL/HTML from raw output)
+    policy: "AI Acceptable Use Policy §4.2"
+    frameworks:
+      iso27001: [A.8.28]
+      iso42001: [A.6.2.4]
+      nist_ai_rmf: [MEASURE 2.7]
+      owasp_llm: [LLM05]
+
+  - id: AL-25
+    title: AI agent tools scoped to least privilege with human approval for high-impact actions
+    policy: "AI Acceptable Use Policy §4.3"
+    frameworks:
+      iso42001: [A.9.2]
+      nist_ai_rmf: [GOVERN 3.2, MANAGE 2.4]
+      owasp_llm: [LLM06]
+
+  - id: AL-26
+    title: AI usage bounded (token limits, rate limits, timeouts)
+    policy: "AI Acceptable Use Policy §4.4"
+    frameworks:
+      soc2: [A1.1]
+      nist_ai_rmf: [MANAGE 2.4]
+      owasp_llm: [LLM10]
+
+  - id: AL-27
+    title: AI interactions logged for monitoring and audit
+    policy: "AI Acceptable Use Policy §5.1"
+    frameworks:
+      soc2: [CC7.2]
+      iso42001: [A.6.2.6, A.6.2.8]
+      nist_ai_rmf: [MANAGE 4.1]
+
+  - id: AL-28
+    title: System prompts contain no secrets or sensitive business logic
+    policy: "AI Acceptable Use Policy §4.5"
+    frameworks:
+      iso42001: [A.6.2.4]
+      owasp_llm: [LLM07]
+
+  - id: AL-29
+    title: Users informed when interacting with AI; AI output documented
+    policy: "AI Acceptable Use Policy §6.1"
+    frameworks:
+      iso42001: [A.8.2]
+      nist_ai_rmf: [GOVERN 4.2, MAP 3.4]
+      owasp_llm: [LLM09]
+
+  - id: AL-30
+    title: Retrieval / vector stores enforce access control on embedded documents
+    policy: "AI Acceptable Use Policy §4.6"
+    frameworks:
+      iso27001: [A.8.3]
+      iso42001: [A.7.2]
+      owasp_llm: [LLM08]

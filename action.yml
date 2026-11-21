@@ -1,0 +1,51 @@
+name: "AuditLens"
+description: "Compliance-aware PR review: SOC 2, ISO 27001, ISO 42001, NIST AI RMF, OWASP LLM Top 10, CISA KEV"
+branding:
+  icon: "shield"
+  color: "blue"
+
+inputs:
+  anthropic-api-key:
+    description: "Anthropic API key (enables the policy and AI governance agents)"
+    required: false
+  model:
+    description: "Claude model ID"
+    required: false
+    default: "claude-sonnet-5-5"
+  fail-on:
+    description: "Fail the check at this severity or above: critical | high | medium | low | never"
+    required: false
+    default: "critical"
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install AuditLens dependencies
+      shell: bash
+      run: pip install --quiet -r "${{ github.action_path }}/requirements.txt"
+
+    - name: Run AuditLens
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      env:
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        AUDITLENS_MODEL: ${{ inputs.model }}
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        python -m auditlens \
+          --repo-path "$GITHUB_WORKSPACE" \
+          --base "origin/${{ github.base_ref }}" \
+          --head HEAD \
+          --output-dir "$GITHUB_WORKSPACE/auditlens-out" \
+          --fail-on "${{ inputs.fail-on }}"
+
+    - name: Upload audit evidence
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: auditlens-evidence
+        path: ${{ github.workspace }}/auditlens-out

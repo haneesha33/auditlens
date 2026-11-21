@@ -1,0 +1,23 @@
+# Copy to .github/workflows/auditlens.yml in the repo you want reviewed (e.g. your demo app).
+# Add your Anthropic key as a repository secret named ANTHROPIC_API_KEY.
+name: AuditLens
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  auditlens:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # needed to diff against the base branch
+
+      - uses: haneesha33/auditlens@main
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          fail-on: critical
