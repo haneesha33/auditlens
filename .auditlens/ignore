@@ -1,7 +1,9 @@
 # AuditLens exclusions (exception register).
-# One path or glob per line, followed by "# reason". Every exclusion is shown in the
-# PR comment and saved in the evidence record.
+# Format: <path or glob>  # <reason>; approved-by: <name>; expires: YYYY-MM-DD
+# Rules: every entry needs a reason, an approver and an expiry date no more than 90 days away.
+# Entries that are incomplete or expired are NOT applied, so those files get scanned again.
+# Every applied exclusion is shown in the PR comment and saved in the evidence record.
 
-auditlens/ai_checks.py     # contains detection regex patterns (e.g. secret formats), not executable secrets or AI calls
-auditlens/scanners.py      # contains built-in rule patterns for injection and IaC checks
-demo/                      # deliberately insecure demo content with fake secrets, used to showcase findings
+auditlens/ai_checks.py     # contains detection regex patterns (e.g. secret formats), not executable secrets or AI calls; approved-by: haneesha33 (security owner); expires: 2027-02-19
+auditlens/scanners.py      # contains built-in rule patterns for injection and IaC checks; approved-by: haneesha33 (security owner); expires: 2027-02-19
+demo/                      # deliberately insecure demo content with fake secrets, not production code; approved-by: haneesha33 (security owner); expires: 2027-02-19

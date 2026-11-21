@@ -34,7 +34,7 @@ AuditLens is itself an AI system, so it is documented and reviewed the same way 
 | **False positive / hallucinated finding** | Medium | Schema-enforced output; every LLM finding must quote a policy sentence; validator drops unknown control IDs and files outside the change; 🤖 label on every AI-generated item |
 | **Prompt injection via code under review** (e.g. a comment telling the model to approve) | Medium | LLM output can only *add* findings; it cannot remove or downgrade deterministic findings, and it is validated structured data that is never executed |
 | **Overstated assurance in evidence** | Low | Evidence uses *fail / no findings / not applicable / performed*; "no findings" is explicitly not reported as "pass" |
-| **Sensitive code shared with a third-party model** | Low–Medium | Opt-in per repository; paths can be excluded with a recorded reason; the provider must go through the organization's vendor review (see §3) |
+| **Sensitive code shared with a third-party model** | Low–Medium | Opt-in per repository; paths can be excluded only with a recorded reason, approver and expiry (max 90 days); the provider must go through the organization's vendor review (see §3) |
 | **Cost or availability issues** | Low | `max_tokens` set on every call; 120 s timeout; agents are skipped, not retried in a loop, if the API fails |
 
 **Residual risk:** acceptable for an assistive review tool, provided the owner reviews AI-generated findings before acting and keeps deterministic checks enabled.
@@ -57,7 +57,7 @@ The only AI provider is Anthropic. Before using AuditLens on proprietary code, a
 
 ## 6. Self-review
 
-AuditLens runs on its own pull requests through `.github/workflows/self-review.yml`. Paths that contain detection patterns or deliberately insecure demo content are excluded in [`.auditlens/ignore`](.auditlens/ignore), each with a written reason. The exclusions appear in the review comment and in the evidence record, so they stay visible and auditable.
+AuditLens runs on its own pull requests through `.github/workflows/self-review.yml`. Paths that contain detection patterns or deliberately insecure demo content are excluded in [`.auditlens/ignore`](.auditlens/ignore). Each exclusion needs a written reason, a named approver and an expiry date no more than 90 days away; incomplete or expired entries are not applied, so those files are scanned again until the exception is renewed. This rule came from AuditLens's own review of the PR that introduced the exclusions. The exclusions appear in the review comment and in the evidence record, so they stay visible and auditable.
 
 ## 7. Review
 

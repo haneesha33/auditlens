@@ -6,6 +6,7 @@ import fnmatch
 import os
 import shutil
 import sys
+from datetime import date
 from pathlib import Path
 
 from . import agents, ai_checks, diff, evidence, github, llm, report, scanners, vulns
@@ -26,20 +27,48 @@ def load_policies(policy_dir: Path) -> tuple[str, str]:
     return "\n\n".join(all_parts), "\n\n".join(ai_parts or all_parts)
 
 
-def load_exclusions(repo: Path) -> list[dict]:
-    """Read .auditlens/ignore: one path or glob per line, with a required '# reason'.
-    Exclusions are an exception register: each one is reported and saved in the evidence."""
+MAX_EXCEPTION_DAYS = 90
+
+
+def load_exclusions(repo: Path, today: date | None = None) -> tuple[list[dict], list[str]]:
+    """Read .auditlens/ignore, an exception register. Each line:
+        <path or glob>  # <reason>; approved-by: <name>; expires: YYYY-MM-DD
+    An entry is applied only if it has a reason, an approver and an expiry date that is
+    not in the past and at most MAX_EXCEPTION_DAYS away. Invalid or expired entries are
+    ignored (the files get scanned) and reported. Returns (rules, problems)."""
     path = repo / ".auditlens" / "ignore"
     if not path.exists():
-        return []
-    rules = []
-    for raw in path.read_text().splitlines():
+        return [], []
+    today = today or date.today()
+    rules, problems = [], []
+    for n, raw in enumerate(path.read_text().splitlines(), 1):
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
-        pattern, _, reason = line.partition("#")
-        rules.append({"pattern": pattern.strip(), "reason": reason.strip() or "No reason given", "files": []})
-    return rules
+        pattern, _, rest = line.partition("#")
+        pattern = pattern.strip()
+        parts = [p.strip() for p in rest.split(";")]
+        reason = parts[0] if parts and ":" not in parts[0] else ""
+        fields = {k.strip().lower(): v.strip() for k, _, v in (p.partition(":") for p in parts if ":" in p)}
+        approver, expires_raw = fields.get("approved-by", ""), fields.get("expires", "")
+        missing = [name for name, val in (("reason", reason), ("approved-by", approver), ("expires", expires_raw)) if not val]
+        if missing:
+            problems.append(f"line {n} ({pattern}): missing {', '.join(missing)}")
+            continue
+        try:
+            expires = date.fromisoformat(expires_raw)
+        except ValueError:
+            problems.append(f"line {n} ({pattern}): expires '{expires_raw}' is not a YYYY-MM-DD date")
+            continue
+        if expires < today:
+            problems.append(f"line {n} ({pattern}): expired on {expires} - renew it with a fresh approval or remove it")
+            continue
+        if (expires - today).days > MAX_EXCEPTION_DAYS:
+            problems.append(f"line {n} ({pattern}): expires {expires}, more than {MAX_EXCEPTION_DAYS} days away")
+            continue
+        rules.append({"pattern": pattern, "reason": reason, "approved_by": approver,
+                      "expires": expires.isoformat(), "files": []})
+    return rules, problems
 
 
 def is_excluded(f: str, rules: list[dict]) -> dict | None:
@@ -83,7 +112,10 @@ def main(argv=None) -> int:
 
     files = diff.changed_files(repo, base, head)
     added = diff.added_lines(repo, base, head)
-    exclusions = load_exclusions(repo)
+    exclusions, exclusion_problems = load_exclusions(repo)
+    if exclusion_problems:
+        warnings.append("Invalid .auditlens/ignore entries were NOT applied (those files were scanned): "
+                        + "; ".join(exclusion_problems))
     if exclusions:
         kept = []
         for f in files:
@@ -97,7 +129,8 @@ def main(argv=None) -> int:
         skipped = sum(len(r["files"]) for r in exclusions)
         if skipped:
             warnings.append(f"{skipped} changed file(s) excluded by .auditlens/ignore: "
-                            + "; ".join(f"{', '.join(r['files'])} ({r['reason']})" for r in exclusions if r["files"]))
+                            + "; ".join(f"{', '.join(r['files'])} ({r['reason']}; approved by {r['approved_by']}, "
+                                        f"expires {r['expires']})" for r in exclusions if r["files"]))
     sha = diff.head_sha(repo, head)
     print(f"[auditlens] {len(files)} changed file(s) between {base} and {head}", file=sys.stderr)
 
