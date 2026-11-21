@@ -150,6 +150,8 @@ The catalog in [`controls/controls.yaml`](controls/controls.yaml) contains 24 co
 ## Self-assessment
 
 AuditLens is itself an AI system, so it follows its own rules:
+Full details: **[AI System Card](SYSTEM_CARD.md)** (inventory entry, impact assessment, risks and mitigations). AuditLens also reviews its own pull requests, with documented exclusions in [`.auditlens/ignore`](.auditlens/ignore).
+
 
 - **Purpose:** assist (not replace) human security review of code changes
 - **Autonomy:** informational / human-in-the-loop. It comments and can fail a check; humans decide

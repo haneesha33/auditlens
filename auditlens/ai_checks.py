@@ -47,7 +47,7 @@ SECRET_PATTERNS = [
 SAFE_SECRET_HINTS = ("getenv", "environ", "process.env", "secrets.", "os.environ", "<", "example", "changeme", "xxxx")
 
 # ---------- AI risk heuristics ----------
-USER_INPUT = r"(request\.|req\.body|req\.query|user_input|user_message|userInput|params\[|input\(|query|question|message\b|form\[|body\[|email_body|document|web_content)"
+USER_INPUT = r"(request\.|req\.body|req\.query|user_input|user_message|userInput|params\[|input\(|query|question|message\b|email_body|document|web_content)"
 PROMPT_CTX = r"(prompt|system|instruction|messages|role|content)"
 FSTRING = r"""(\bf["']|\.format\(|\$\{|["']\s*\+\s*\w|\w\s*\+\s*["'])"""
 PII = r"(\bemail\b|\bssn\b|social_security|date_of_birth|\bdob\b|phone|address|customer\.|patient|credit_card|card_number|full_name)"

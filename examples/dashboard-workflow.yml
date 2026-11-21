@@ -21,19 +21,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  dashboard:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - name: Get AuditLens
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: haneesha33/auditlens
           path: auditlens
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -58,9 +55,20 @@ jobs:
           python -m auditlens.dashboard --evidence-dir ../evidence --prs ../prs.json \
             --repo "$GITHUB_REPOSITORY" --out ../site/index.html
 
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@v6
+
+      - name: Upload site for Pages
+        uses: actions/upload-pages-artifact@v5
         with:
           path: site
+
+  deploy:
+    # GitHub's recommended pattern: deploy in its own job after the build job uploads the site.
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
       - id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

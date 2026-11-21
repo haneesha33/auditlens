@@ -167,7 +167,7 @@ def scan_dependencies(deps: list[dict], warnings: list[str]) -> tuple[list[Findi
         rows.append({
             "package": f"{dep['name']}@{dep['version']}", "ecosystem": dep["ecosystem"],
             "vuln": cve or vid, "kev": in_kev, "epss": round(score, 4),
-            "severity": sev, "fixed": fixed[:3], "file": dep["file"],
+            "severity": sev, "fixed": fixed, "file": dep["file"],
         })
         findings.append(Finding(
             title=f"{dep['name']}@{dep['version']} vulnerable to {cve or vid}",
@@ -181,6 +181,40 @@ def scan_dependencies(deps: list[dict], warnings: list[str]) -> tuple[list[Findi
             category="dependency",
         ))
     return findings, rows
+
+
+def _ver(v: str) -> tuple:
+    """'2.25.4' -> (2, 25, 4); non-numeric suffixes are ignored ('5.4b1' -> (5, 4))."""
+    parts = []
+    for p in re.split(r"[.\-+]", v):
+        m = re.match(r"\d+", p)
+        if not m:
+            break
+        parts.append(int(m.group()))
+    return tuple(parts)
+
+
+def recommend_upgrades(rows: list[dict]) -> list[dict]:
+    """One recommendation per package: the newest fixed version across all its CVEs that is
+    newer than the current version. Upgrading to it should address every listed CVE
+    (assuming later releases keep earlier fixes; check release notes for breaking changes)."""
+    by_pkg: dict[str, list[dict]] = {}
+    for r in rows:
+        by_pkg.setdefault(r["package"], []).append(r)
+    recs = []
+    for pkg, items in by_pkg.items():
+        name, _, current = pkg.rpartition("@")
+        cur = _ver(current)
+        candidates = [f for r in items for f in r.get("fixed", []) if _ver(f) > cur]
+        target = max(candidates, key=_ver) if candidates else None
+        recs.append({
+            "package": name, "current": current, "upgrade_to": target,
+            "fixes": len(items), "kev": sum(1 for r in items if r.get("kev")),
+            "worst": min((r["severity"] for r in items), key=["critical", "high", "medium", "low"].index),
+            "ecosystem": items[0].get("ecosystem"), "file": items[0].get("file"),
+        })
+    recs.sort(key=lambda x: (-x["kev"], ["critical", "high", "medium", "low"].index(x["worst"]), -x["fixes"]))
+    return recs
 
 
 def to_json(rows: list[dict]) -> str:

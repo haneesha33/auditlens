@@ -32,8 +32,17 @@ class Finding:
         return asdict(self)
 
 
+def risk_key(severity: str, detail: str) -> tuple:
+    """Within a severity, put actively exploited (CISA KEV) issues first, then higher EPSS."""
+    import re
+    kev = 0 if "In CISA KEV" in (detail or "") else 1
+    m = re.search(r"EPSS ([0-9.]+)%", detail or "")
+    epss = -float(m.group(1)) if m else 0.0
+    return (SEVERITY_ORDER.get(severity, 9), kev, epss)
+
+
 def sort_findings(findings: list[Finding]) -> list[Finding]:
-    return sorted(findings, key=lambda f: (SEVERITY_ORDER.get(f.severity, 9), f.file or "", f.line or 0))
+    return sorted(findings, key=lambda f: (*risk_key(f.severity, f.detail), f.file or "", f.line or 0))
 
 
 def dedupe(findings: list[Finding]) -> list[Finding]:

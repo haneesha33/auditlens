@@ -130,6 +130,10 @@ def _resolve_checkov_path(check: dict, targets: list[str]) -> str | None:
     return matches[0] if matches else ((check.get("file_path") or "").lstrip("/") or None)
 
 
+IAC_AREAS = {"AL-12": "hardened-baseline", "AL-04": "encryption", "AL-09": "logging",
+             "AL-05": "public-access", "AL-03": "least-privilege"}
+
+
 def merge_iac_overlaps(findings: list[Finding]) -> list[Finding]:
     """Built-in rules and Checkov often flag the same IaC problem (e.g. public S3 access) with
     different wording and line numbers. Keep one finding per (file, controls), the most severe,
@@ -148,6 +152,13 @@ def merge_iac_overlaps(findings: list[Finding]) -> list[Finding]:
         if extra:
             ids = ", ".join(g.detail.split("`")[1] for g in extra if "`" in g.detail)
             keep.detail = f"{keep.detail} · Also flagged by Checkov: {ids}"
+            if keep.source == "checkov":
+                # A Checkov-only group: name the gap, not just its first check.
+                resource = keep.detail.split("resource `")[1].split("`")[0] if "resource `" in keep.detail else "Resource"
+                area = IAC_AREAS.get(keep.control_ids[0], "baseline") if keep.control_ids else "baseline"
+                first = keep.title
+                keep.title = f"{resource} fails {len(group)} {area} checks"
+                keep.detail = f"Includes: {first}. {keep.detail}"
         merged.append(keep)
     return rest + merged
 
