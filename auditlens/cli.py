@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import os
 import shutil
 import sys
@@ -23,6 +24,30 @@ def load_policies(policy_dir: Path) -> tuple[str, str]:
         if p.stem.startswith("ai") or "ai-" in p.stem:
             ai_parts.append(text)
     return "\n\n".join(all_parts), "\n\n".join(ai_parts or all_parts)
+
+
+def load_exclusions(repo: Path) -> list[dict]:
+    """Read .auditlens/ignore: one path or glob per line, with a required '# reason'.
+    Exclusions are an exception register: each one is reported and saved in the evidence."""
+    path = repo / ".auditlens" / "ignore"
+    if not path.exists():
+        return []
+    rules = []
+    for raw in path.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        pattern, _, reason = line.partition("#")
+        rules.append({"pattern": pattern.strip(), "reason": reason.strip() or "No reason given", "files": []})
+    return rules
+
+
+def is_excluded(f: str, rules: list[dict]) -> dict | None:
+    for r in rules:
+        p = r["pattern"]
+        if fnmatch.fnmatch(f, p) or f.startswith(p.rstrip("/") + "/"):
+            return r
+    return None
 
 
 def parse_args(argv=None):
@@ -58,6 +83,21 @@ def main(argv=None) -> int:
 
     files = diff.changed_files(repo, base, head)
     added = diff.added_lines(repo, base, head)
+    exclusions = load_exclusions(repo)
+    if exclusions:
+        kept = []
+        for f in files:
+            rule = is_excluded(f, exclusions)
+            if rule:
+                rule["files"].append(f)
+            else:
+                kept.append(f)
+        files = kept
+        added = {f: v for f, v in added.items() if f in set(files)}
+        skipped = sum(len(r["files"]) for r in exclusions)
+        if skipped:
+            warnings.append(f"{skipped} changed file(s) excluded by .auditlens/ignore: "
+                            + "; ".join(f"{', '.join(r['files'])} ({r['reason']})" for r in exclusions if r["files"]))
     sha = diff.head_sha(repo, head)
     print(f"[auditlens] {len(files)} changed file(s) between {base} and {head}", file=sys.stderr)
 
@@ -73,10 +113,11 @@ def main(argv=None) -> int:
         checks.append("checkov")
 
     # 2. Dependency risk
-    dep_rows = []
+    dep_rows, upgrades = [], []
     deps = vulns.parse_new_dependencies(repo, added)
     if deps and not args.offline:
         dep_findings, dep_rows = vulns.scan_dependencies(deps, warnings)
+        upgrades = vulns.recommend_upgrades(dep_rows)
         findings += dep_findings
         checks.append("osv+kev+epss")
     elif deps:
@@ -96,7 +137,7 @@ def main(argv=None) -> int:
         warnings.append("ANTHROPIC_API_KEY not set: policy and AI governance agents skipped.")
         use_llm = False
     if use_llm and files:
-        unified = diff.unified_diff(repo, base, head)
+        unified = diff.unified_diff(repo, base, head, exclude=[r["pattern"] for r in exclusions])
         changed = set(files)
         try:
             findings += agents.policy_agent(unified, policies_text, catalog, findings, changed)
@@ -115,10 +156,11 @@ def main(argv=None) -> int:
     meta = {"repository": os.environ.get("GITHUB_REPOSITORY", repo.name), "pr": github.pr_number_from_event(),
             "base": base, "head_sha": sha, "changed_files": files, "checks": checks}
 
-    body = report.render(findings, catalog, dep_rows, inventory, impact, warnings, meta)
+    body = report.render(findings, catalog, dep_rows, inventory, impact, warnings, meta, upgrades)
     iac_changed = any(f.endswith(".tf") or any(h in f.lower() for h in scanners.IAC_HINTS) for f in files)
     record = evidence.build_record(findings, catalog, inventory, dep_rows, impact, meta, warnings,
-                                   iac_changed=iac_changed, deps_changed=bool(deps))
+                                   iac_changed=iac_changed, deps_changed=bool(deps),
+                                   upgrades=upgrades, exclusions=[r for r in exclusions if r["files"]])
     out_dir = Path(args.output_dir)
     ev_path = evidence.write(record, out_dir)
     (out_dir / "report.md").write_text(body)

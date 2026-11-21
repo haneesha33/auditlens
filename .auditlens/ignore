@@ -1,0 +1,7 @@
+# AuditLens exclusions (exception register).
+# One path or glob per line, followed by "# reason". Every exclusion is shown in the
+# PR comment and saved in the evidence record.
+
+auditlens/ai_checks.py     # contains detection regex patterns (e.g. secret formats), not executable secrets or AI calls
+auditlens/scanners.py      # contains built-in rule patterns for injection and IaC checks
+demo/                      # deliberately insecure demo content with fake secrets, used to showcase findings

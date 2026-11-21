@@ -16,6 +16,8 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .models import risk_key
+
 FRAMEWORK_ORDER = ["SOC 2", "ISO 27001", "ISO 42001", "NIST AI RMF", "OWASP LLM"]
 SEV = ["critical", "high", "medium", "low"]
 
@@ -96,7 +98,7 @@ def summarize(records: list[dict], prs: dict[int, dict], repo: str) -> dict:
         for f in rec.get("findings", []):
             if f.get("severity") in ("critical", "high"):
                 findings.append({**f, "pr": rec.get("pr")})
-    findings.sort(key=lambda f: (SEV.index(f["severity"]), f.get("pr") or 0))
+    findings.sort(key=lambda f: (*risk_key(f["severity"], f.get("detail", "")), f.get("pr") or 0))
 
     ai_systems = []
     for rec in open_records:

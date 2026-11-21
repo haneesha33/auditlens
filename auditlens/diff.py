@@ -46,8 +46,9 @@ def added_lines(repo: Path, base: str, head: str) -> dict[str, list[tuple[int, s
     return result
 
 
-def unified_diff(repo: Path, base: str, head: str, max_chars: int = 60000) -> str:
-    out = _git(repo, "diff", "-U3", "--diff-filter=ACMR", f"{base}...{head}")
+def unified_diff(repo: Path, base: str, head: str, max_chars: int = 60000, exclude: list[str] | None = None) -> str:
+    pathspec = ["--", "."] + [f":(exclude){p}" for p in (exclude or [])] if exclude else []
+    out = _git(repo, "diff", "-U3", "--diff-filter=ACMR", f"{base}...{head}", *pathspec)
     if len(out) > max_chars:
         out = out[:max_chars] + "\n\n[... diff truncated for length ...]\n"
     return out

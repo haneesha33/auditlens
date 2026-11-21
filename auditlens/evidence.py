@@ -21,12 +21,14 @@ IAC_CONTROLS = {"AL-03", "AL-05", "AL-12"}
 DEPENDENCY_CONTROLS = {"AL-10", "AL-11"}
 AI_PREFIX = "AL-2"
 AI_EXTRA = {"AL-30"}  # retrieval / vector store control
+RAG_CONTROL = "AL-30"
 
 STATUS_NOTE = ("'no_findings' means automated checks detected no issue for this change; "
                "it is not proof the control operates effectively.")
 
 
-def _status(cid: str, failing: set[str], iac_changed: bool, deps_changed: bool, ai_detected: bool) -> str:
+def _status(cid: str, failing: set[str], iac_changed: bool, deps_changed: bool, ai_detected: bool,
+            vector_store: bool = False) -> str:
     if cid in failing:
         return "fail"
     if cid == REVIEW_CONTROL:
@@ -37,17 +39,21 @@ def _status(cid: str, failing: set[str], iac_changed: bool, deps_changed: bool, 
         return "not_applicable"
     if (cid.startswith(AI_PREFIX) or cid in AI_EXTRA) and not ai_detected:
         return "not_applicable"
+    if cid == RAG_CONTROL and not vector_store:
+        return "not_applicable"   # AI present, but no retrieval / vector store in this change
     return "no_findings"
 
 
 def build_record(findings: list[Finding], cat: ControlCatalog, inventory: list[dict], dep_rows: list[dict],
                  impact: dict, meta: dict, warnings: list[str],
-                 iac_changed: bool = False, deps_changed: bool = False) -> dict:
+                 iac_changed: bool = False, deps_changed: bool = False,
+                 upgrades: list[dict] | None = None, exclusions: list[dict] | None = None) -> dict:
     failing = {c for f in findings for c in f.control_ids}
     controls = [{
         "id": cid,
         "title": cat.title(cid),
-        "status": _status(cid, failing, iac_changed, deps_changed, bool(inventory)),
+        "status": _status(cid, failing, iac_changed, deps_changed, bool(inventory),
+                          any(i.get("vector_stores") for i in inventory)),
         "frameworks": cat.framework_refs([cid]),
         "finding_count": sum(1 for f in findings if cid in f.control_ids),
     } for cid in cat.controls]
@@ -60,6 +66,8 @@ def build_record(findings: list[Finding], cat: ControlCatalog, inventory: list[d
         "controls": controls,
         "findings": [f.to_dict() for f in findings],
         "dependencies": dep_rows,
+        "upgrade_recommendations": upgrades or [],
+        "excluded_paths": exclusions or [],
         "ai_inventory": inventory,
         "ai_impact_assessment_draft": impact,
         "warnings": warnings,

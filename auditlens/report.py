@@ -46,7 +46,7 @@ def _table(findings: list[Finding], cat: ControlCatalog) -> list[str]:
 
 
 def render(findings: list[Finding], cat: ControlCatalog, dep_rows: list[dict], inventory: list[dict],
-           impact: dict, warnings: list[str], meta: dict) -> str:
+           impact: dict, warnings: list[str], meta: dict, upgrades: list[dict] | None = None) -> str:
     title, summary = verdict(findings)
     counts = {s: sum(1 for f in findings if f.severity == s) for s in ("critical", "high", "medium", "low")}
     failing = sorted({c for f in findings for c in f.control_ids})
@@ -70,12 +70,21 @@ def render(findings: list[Finding], cat: ControlCatalog, dep_rows: list[dict], i
     if ai:
         out += ["### 🤖 AI security findings (OWASP LLM Top 10)", *_table(ai, cat), ""]
 
+    if upgrades:
+        out += ["### ⬆️ Recommended upgrades", "One upgrade per package that addresses every CVE listed for it:", "",
+                "| Package | Current | Upgrade to | Fixes | In KEV |", "|---|---|---|---|---|"]
+        for u in upgrades:
+            target = f"**{u['upgrade_to']}**" if u["upgrade_to"] else "No fixed version available — replace or mitigate"
+            out.append(f"| `{u['package']}` | {u['current']} | {target} | {u['fixes']} CVE{'s' if u['fixes'] != 1 else ''} "
+                       f"| {'🚨 ' + str(u['kev']) if u['kev'] else '—'} |")
+        out += ["", "<sub>Newest fixed version across the package's advisories. Check release notes for breaking changes before upgrading.</sub>", ""]
+
     if dep_rows:
         out += ["### 📦 Dependency risk (OSV + CISA KEV + EPSS)",
                 "| Package | Vulnerability | KEV | EPSS | Priority | Fixed in |", "|---|---|---|---|---|---|"]
         for r in sorted(dep_rows, key=lambda r: (not r["kev"], -r["epss"])):
             out.append(f"| `{r['package']}` | {r['vuln']} | {'🚨 Yes' if r['kev'] else 'No'} | {r['epss']:.2%} "
-                       f"| {SEV_ICON[r['severity']]} {r['severity']} | {', '.join(r['fixed']) or '—'} |")
+                       f"| {SEV_ICON[r['severity']]} {r['severity']} | {', '.join(r['fixed'][:3]) or '—'} |")
         out.append("")
 
     if inventory or gov:

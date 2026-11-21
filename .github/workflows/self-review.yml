@@ -1,0 +1,25 @@
+# AuditLens reviews its own pull requests (dogfooding).
+# Uses the action from this repository (`uses: ./`), so a PR is reviewed by the code it contains.
+# Optional: add an ANTHROPIC_API_KEY repository secret to enable the AI agents;
+# without it, every deterministic check still runs.
+name: AuditLens self-review
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  auditlens:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: ./
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          fail-on: critical
