@@ -2,11 +2,25 @@
 
 **Compliance-aware, AI-security-aware code review on every pull request.**
 
-**[Live readiness dashboard](https://haneesha33.github.io/acme-support-app/)** · [Demo PRs](https://github.com/haneesha33/acme-support-app/pulls)
-
 AuditLens reviews code changes against a company's own security policies and maps every issue to **SOC 2, ISO 27001, ISO 42001, NIST AI RMF and the OWASP Top 10 for LLM Applications**. It flags exploited vulnerabilities using **CISA KEV** and **EPSS**, detects new AI features and drafts the **AI inventory entry and impact assessment** they need, and saves an **audit evidence record** for every PR.
 
 > GRC platforms check whether your *infrastructure* is configured correctly. Nothing checks whether the *code your developers write* follows *your written policies*, or whether a new AI feature just created an ISO 42001 obligation. AuditLens closes that gap and translates security requirements into fixes developers can act on.
+
+**[Live readiness dashboard](https://haneesha33.github.io/acme-support-app/)** · [Demo PRs](https://github.com/haneesha33/acme-support-app/pulls)
+
+## See it in action
+
+**AuditLens blocks the merge.** The AuditLens check is required on `main`, so a pull request with critical findings can't be merged:
+
+![Merge blocked by required AuditLens check](docs/images/merge-blocked.png)
+
+**Every PR gets an AI security review** mapped to ISO 42001, NIST AI RMF and the OWASP LLM Top 10, alongside SOC 2 and ISO 27001:
+
+![AuditLens AI security findings](docs/images/ai-findings.png)
+
+**A live dashboard rolls up readiness** across all reviewed changes ([open it](https://haneesha33.github.io/acme-support-app/)):
+
+![AuditLens readiness dashboard](docs/images/dashboard.png)
 
 ---
 
