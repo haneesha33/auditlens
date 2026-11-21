@@ -118,6 +118,40 @@ def run_semgrep(repo: Path, files: list[str], warnings: list[str]) -> list[Findi
     return findings
 
 
+def _resolve_checkov_path(check: dict, targets: list[str]) -> str | None:
+    """Checkov reports paths relative to the scanned file's folder ('/exports.tf').
+    Map them back to the repo path ('infra/exports.tf') so locations and de-duplication line up."""
+    for key in ("repo_file_path", "file_path"):
+        p = (check.get(key) or "").lstrip("/")
+        if p in targets:
+            return p
+    name = Path((check.get("file_path") or "").lstrip("/")).name
+    matches = [t for t in targets if Path(t).name == name]
+    return matches[0] if matches else ((check.get("file_path") or "").lstrip("/") or None)
+
+
+def merge_iac_overlaps(findings: list[Finding]) -> list[Finding]:
+    """Built-in rules and Checkov often flag the same IaC problem (e.g. public S3 access) with
+    different wording and line numbers. Keep one finding per (file, controls), the most severe,
+    and note the extra Checkov check IDs on it."""
+    from .models import SEVERITY_ORDER
+    iac = [f for f in findings if f.file and f.file.endswith(".tf") and f.source in ("builtin-rules", "checkov")]
+    rest = [f for f in findings if f not in iac]
+    groups: dict[tuple, list[Finding]] = {}
+    for f in iac:
+        groups.setdefault((f.file, tuple(sorted(f.control_ids))), []).append(f)
+    merged = []
+    for group in groups.values():
+        group.sort(key=lambda f: (SEVERITY_ORDER.get(f.severity, 9), f.source != "builtin-rules"))
+        keep = group[0]
+        extra = [g for g in group[1:] if g.source == "checkov"]
+        if extra:
+            ids = ", ".join(g.detail.split("`")[1] for g in extra if "`" in g.detail)
+            keep.detail = f"{keep.detail} · Also flagged by Checkov: {ids}"
+        merged.append(keep)
+    return rest + merged
+
+
 def run_checkov(repo: Path, files: list[str], warnings: list[str]) -> list[Finding]:
     targets = [
         f for f in files
@@ -144,11 +178,12 @@ def run_checkov(repo: Path, files: list[str], warnings: list[str]) -> list[Findi
     for rep in reports:
         for c in rep.get("results", {}).get("failed_checks", []):
             name = c.get("check_name", "Checkov finding")
-            fpath = (c.get("file_path") or "").lstrip("/")
+            fpath = _resolve_checkov_path(c, targets)
             line_range = c.get("file_line_range") or [None]
             findings.append(Finding(
                 title=name[:140],
-                severity=CHECKOV_SEV.get((c.get("severity") or "").upper(), "high"),
+                # Checkov's open-source output usually has no severity; default to medium, not high.
+                severity=CHECKOV_SEV.get((c.get("severity") or "").upper(), "medium"),
                 source="checkov",
                 control_ids=_checkov_controls(c.get("check_id", ""), name),
                 file=fpath or None,

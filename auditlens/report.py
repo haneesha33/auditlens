@@ -33,6 +33,8 @@ def _row(f: Finding, cat: ControlCatalog) -> str:
     title = f.title.replace("|", "\\|")
     detail = (f.detail or "").replace("|", "\\|").replace("\n", " ")
     fix = (f.fix or "").replace("|", "\\|").replace("\n", " ")
+    if fix.startswith("http"):
+        fix = f"[Remediation guide]({fix})"
     return (f"| {SEV_ICON.get(f.severity, '')} {f.severity} | **{title}**{bot}<br><sub>{detail}</sub> | {_loc(f)} "
             f"| **{controls}**<br><sub>{refs}</sub> | {fix} |")
 

@@ -111,7 +111,7 @@ def main(argv=None) -> int:
             except Exception as e:  # noqa: BLE001
                 warnings.append(f"AI governance agent failed: {e}")
 
-    findings = sort_findings(dedupe(findings))
+    findings = sort_findings(dedupe(scanners.merge_iac_overlaps(findings)))
     meta = {"repository": os.environ.get("GITHUB_REPOSITORY", repo.name), "pr": github.pr_number_from_event(),
             "base": base, "head_sha": sha, "changed_files": files, "checks": checks}
 
