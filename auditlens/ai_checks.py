@@ -145,7 +145,9 @@ def scan_ai_risks(added: dict[str, list[tuple[int, str]]], inventory: list[dict]
                     "Move secrets and sensitive logic out of the prompt into server-side code.")
 
         info = ai_files[path]
-        first_line = lines[0][0] if lines else None
+        # Point at the model call itself when it's in the diff, otherwise the first added line.
+        call_lines = [ln for ln, text in lines if LLM_CALL_RE.search(text)]
+        first_line = call_lines[0] if call_lines else (lines[0][0] if lines else None)
         if info["makes_llm_calls"] and not info["has_token_limit"]:
             add(path, first_line, "LLM call without a token limit", "medium", ["AL-26"],
                 "Unbounded generation risks cost blowups and denial of wallet.",

@@ -129,4 +129,6 @@ Tasks:
     result = llm.structured_call(system, user, "report_ai_review",
                                  "Report AI security findings and a draft AI impact assessment.", schema, max_tokens=5000)
     findings = _validate(result.get("findings", []), catalog, changed, "ai-governance-agent", "ai-security")
-    return findings, result.get("impact_assessment", {})
+    # Without forced tool use the schema isn't strictly enforced; tidy stray whitespace in keys.
+    impact = {str(k).strip(): v for k, v in (result.get("impact_assessment") or {}).items()}
+    return findings, impact

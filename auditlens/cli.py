@@ -116,7 +116,9 @@ def main(argv=None) -> int:
             "base": base, "head_sha": sha, "changed_files": files, "checks": checks}
 
     body = report.render(findings, catalog, dep_rows, inventory, impact, warnings, meta)
-    record = evidence.build_record(findings, catalog, inventory, dep_rows, impact, meta, warnings)
+    iac_changed = any(f.endswith(".tf") or any(h in f.lower() for h in scanners.IAC_HINTS) for f in files)
+    record = evidence.build_record(findings, catalog, inventory, dep_rows, impact, meta, warnings,
+                                   iac_changed=iac_changed, deps_changed=bool(deps))
     out_dir = Path(args.output_dir)
     ev_path = evidence.write(record, out_dir)
     (out_dir / "report.md").write_text(body)
